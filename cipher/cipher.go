@@ -19,7 +19,11 @@ var LetterFrequency = map[byte]float64 {
 	'y':2.11, 'w':2.09, 'g':2.03, 'p':1.82, 'b':1.49,
 	'v':1.11, 'k':0.69, 'x':0.17, 'q':0.11, 'j':0.1,
 	'z':0.07,
+	byte(32):0.0,
+	byte(34):0.0,
+	byte(44):0.0,
 }
+var InvalidChar = -0.15
 
 func initLetters() {
 	if len(LettersNumbers) == 0 {
@@ -50,31 +54,53 @@ func SingleByteXORDecode(coded []byte) {
 		decode := SingleByteXORCipher(c,coded)
 		m[c] = decode
 	}
-	fmt.Println(ScoreAsEnglish(m['X']))
-	fmt.Println(ScoreAsEnglish(m['A']))
+
+	scores := ScoreMaps(m)
+	printHighScores(scores,m)
 }
 
-func ScoreMaps(m map[byte][]byte) {
-	return
+func ScoreMaps(m map[byte][]byte) map[byte]float64 {
+	var result = make(map[byte]float64)
+	for k, v := range m {
+		result[k] = ScoreAsEnglish(v)
+	}
+	return result
 }
 
 func ScoreAsEnglish(b []byte) float64{
 	var result float64
 	for _, c := range b {
-		result += LetterFrequency[c]
+		if v, ok := LetterFrequency[c]; ok {
+			result += v
+		} else {
+			result -= InvalidChar
+		}
 	}
 	result /= float64(len(b))
 	return result 
 }
 
+func printHighScores(s map[byte]float64, m map[byte][]byte) {
+	for k, v := range s {
+		if v > 3.5 {
+			fmt.Println(fmt.Sprintf("%c - %v",k,v))
+			printFormatedByteArray(m[k])
+		}
+	}
+}
+
 func printDecodedMaps(m map[byte][]byte) {
 	for k, v := range m {
 		fmt.Println(fmt.Sprintf("%c",k))
-		for _, c := range v {
-			fmt.Printf("%c",c)
-		}
-		fmt.Println()
+		printFormatedByteArray(v)
 	}
+}
+
+func printFormatedByteArray(v []byte) {
+	for _, c := range v {
+		fmt.Printf("%c",c)
+	}
+	fmt.Println()
 }
 
 func main() {
