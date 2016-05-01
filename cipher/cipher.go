@@ -5,6 +5,22 @@ import (
 	"encoding/hex"
 )
 
+var LettersNumbers []byte
+
+func initLetters() {
+	if len(LettersNumbers) == 0 {
+		for i:='A'; i<='Z'; i++ {
+			LettersNumbers = append(LettersNumbers, byte(i))
+		}
+		for i:='a'; i<='z'; i++ {
+			LettersNumbers = append(LettersNumbers, byte(i))
+		}
+		for i:=0; i<10; i++ {
+			LettersNumbers = append(LettersNumbers, byte(i))
+		}
+	}
+}
+
 func SingleByteXORCipher(c byte, b []byte) []byte {
 	var result []byte
 	for i := range b {
@@ -14,11 +30,23 @@ func SingleByteXORCipher(c byte, b []byte) []byte {
 }
 
 func SingleByteXORDecode(coded []byte) {
-	for i:=0; i<128; i++ {
-		decode := SingleByteXORCipher(byte(i),coded)
+	initLetters()
+	m := make(map[byte][]byte)
+	for _, c := range LettersNumbers {
+		decode := SingleByteXORCipher(c,coded)
+		m[c] = decode
+		/*
 		fmt.Println(fmt.Sprintf("%c",byte(i)))
 		for _, v := range decode {
 			fmt.Printf("%c",v)
+		}
+		fmt.Println()
+		*/
+	}
+	for k, v := range m {
+		fmt.Println(fmt.Sprintf("%c",k))
+		for _, c := range v {
+			fmt.Printf("%c",c)
 		}
 		fmt.Println()
 	}
