@@ -3,6 +3,7 @@ package main
 import (
         "fmt"
 	"encoding/hex"
+	"strings"
 )
 
 var LettersNumbers []byte
@@ -24,6 +25,14 @@ var LetterFrequency = map[byte]float64 {
 	byte(44):0.0,
 }
 var InvalidChar = -0.15
+var WordLengthFrequency = map[int]float64 {
+	1:2.998, 2:17.651, 3:20.511, 4:14.787,
+	5:10.7, 6:8.388, 7:7.939, 8:5.943,
+	9:4.437, 10:3.076, 11:1.761, 12:0.958,
+	13:0.518, 14:0.22, 15:0.076, 16:0.02,
+	17:0.01, 18:0.004, 19:0.001, 20:0.001,
+}
+var TooLong = -0.01
 
 func initLetters() {
 	if len(LettersNumbers) == 0 {
@@ -47,7 +56,7 @@ func SingleByteXORCipher(c byte, b []byte) []byte {
 	return result
 }
 
-func SingleByteXORDecode(coded []byte) {
+func SingleByteXORDecode(coded []byte) (byte, float64, []byte) {
 	initLetters()
 	m := make(map[byte][]byte)
 	for _, c := range LettersNumbers {
@@ -56,7 +65,8 @@ func SingleByteXORDecode(coded []byte) {
 	}
 
 	scores := ScoreMaps(m)
-	printHighScores(scores,m)
+	k := GetHighScoreCipher(scores,m)
+	return k, scores[k], m[k]
 }
 
 func ScoreMaps(m map[byte][]byte) map[byte]float64 {
@@ -77,7 +87,21 @@ func ScoreAsEnglish(b []byte) float64{
 		}
 	}
 	result /= float64(len(b))
+	result += ScoreOnWordLength(b)
 	return result 
+}
+
+func ScoreOnWordLength(b []byte) float64{
+	var result float64
+	words := strings.Split(string(b), " ")
+	for _, word := range words {
+		if v, ok := WordLengthFrequency[len(word)]; ok {
+			result += v
+		} else {
+			result += TooLong * float64((len(word) - 20))
+		}
+	}
+	return result
 }
 
 func printHighScores(s map[byte]float64, m map[byte][]byte) {
@@ -87,6 +111,18 @@ func printHighScores(s map[byte]float64, m map[byte][]byte) {
 			printFormatedByteArray(m[k])
 		}
 	}
+}
+
+func GetHighScoreCipher(s map[byte]float64, m map[byte][]byte) byte {
+	highScore := 0.0
+	var highCipher byte
+	for k,v := range s {
+		if v > highScore {
+			highScore = v
+			highCipher = k
+		}
+	}
+	return highCipher
 }
 
 func printDecodedMaps(m map[byte][]byte) {
@@ -105,6 +141,8 @@ func printFormatedByteArray(v []byte) {
 
 func main() {
         coded, _ := hex.DecodeString("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
-	SingleByteXORDecode(coded)
+	cipher, score, byteArray := SingleByteXORDecode(coded)
+	fmt.Println(fmt.Sprintf("%c - %v",cipher,score))
+	printFormatedByteArray(byteArray)
 }
 
