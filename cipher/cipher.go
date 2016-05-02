@@ -4,8 +4,10 @@ import (
         "fmt"
 	"encoding/hex"
 	"strings"
+	"io/ioutil"
 )
 
+var Thresh = 5.5
 var LettersNumbers []byte
 var LetterFrequency = map[byte]float64 {
 	'E':12.02, 'T':9.1, 'A':8.12, 'O':7.68, 'I':7.31,
@@ -22,9 +24,25 @@ var LetterFrequency = map[byte]float64 {
 	'z':0.07,
 	byte(32):0.0,
 	byte(34):0.0,
+	byte(39):0.0,
 	byte(44):0.0,
 }
-var InvalidChar = -0.15
+var InvalidChar = -10.00
+var CommonWords = map[string]float64 {
+	"the":7.14, "of":4.16, "and":30.4, "to":2.6,
+	"in":2.27, "a":2.06, "is":1.13, "that":1.08,
+	"for":0.88, "it":0.77, "as":0.77, "was":0.74,
+	"with":0.77, "be":0.65, "by":0.63, "on":0.62,
+	"not":0.61, "he":0.55, "i":0.52, "this":0.51,
+	"are":0.50, "or":0.49, "his":0.49, "from":0.47,
+	"at":0.46, "which":0.42, "but":0.38, "have":0.37,
+	"an":0.37, "had":0.35, "they":0.33, "you":0.31,
+	"were":0.31, "their":0.29, "one":0.29, "all":0.28,
+	"we":0.28, "can":0.22, "her":0.22, "has":0.22,
+	"there":0.22, "been":0.22, "if":0.21, "more":0.21,
+	"when":0.2, "will":0.2, "would":0.2, "who":0.2,
+	"so":0.19, "no":0.19,"party":10.0,
+}
 var WordLengthFrequency = map[int]float64 {
 	1:2.998, 2:17.651, 3:20.511, 4:14.787,
 	5:10.7, 6:8.388, 7:7.939, 8:5.943,
@@ -32,7 +50,7 @@ var WordLengthFrequency = map[int]float64 {
 	13:0.518, 14:0.22, 15:0.076, 16:0.02,
 	17:0.01, 18:0.004, 19:0.001, 20:0.001,
 }
-var TooLong = -0.01
+var TooLong = -0.50
 
 func initLetters() {
 	if len(LettersNumbers) == 0 {
@@ -42,7 +60,7 @@ func initLetters() {
 		for i:='a'; i<='z'; i++ {
 			LettersNumbers = append(LettersNumbers, byte(i))
 		}
-		for i:=0; i<10; i++ {
+		for i:='0'; i<='9'; i++ {
 			LettersNumbers = append(LettersNumbers, byte(i))
 		}
 	}
@@ -83,12 +101,28 @@ func ScoreAsEnglish(b []byte) float64{
 		if v, ok := LetterFrequency[c]; ok {
 			result += v
 		} else {
-			result -= InvalidChar
+			result += InvalidChar
 		}
 	}
 	result /= float64(len(b))
-	result += ScoreOnWordLength(b)
+	result += ScoreCommonWords(b)
+/*
+	if result > 2 {
+		result += ScoreOnWordLength(b)
+	}
+*/
 	return result 
+}
+
+func ScoreCommonWords(b []byte) float64{
+	var result float64
+	words := strings.Split(string(b), " ")
+	for _, word := range words {
+		if v, ok := CommonWords[strings.ToLower(word)]; ok {
+			result += v
+		}
+	}
+	return result
 }
 
 func ScoreOnWordLength(b []byte) float64{
@@ -101,7 +135,7 @@ func ScoreOnWordLength(b []byte) float64{
 			result += TooLong * float64((len(word) - 20))
 		}
 	}
-	return result
+	return result / float64(len(words))
 }
 
 func printHighScores(s map[byte]float64, m map[byte][]byte) {
@@ -139,7 +173,36 @@ func printFormatedByteArray(v []byte) {
 	fmt.Println()
 }
 
+func PossibleSingleByteXOR(b []byte) (bool,float64,byte,[]byte) {
+	cipher, score, byteArray := SingleByteXORDecode(b)
+	if score > Thresh {
+		return true, score, cipher, byteArray
+	}
+	return false, score, cipher, byteArray
+}
+
+func DetectSingleByteXORs(codes []string) {
+	for _, code := range codes {
+		hexCode, _ := hex.DecodeString(code)
+		passes,score,cipher,array := PossibleSingleByteXOR(hexCode)
+		if passes {
+			fmt.Println(fmt.Sprintf("%c - %v",cipher,score))
+			printFormatedByteArray(array)
+		}
+	}
+}
+
 func main() {
+//Test code for detecting an single byte XOR cipher
+	f, err := ioutil.ReadFile("test.txt")
+	if err != nil {
+		fmt.Println("error")
+		return
+	}
+	codes := strings.Split(string(f),"\n")
+	DetectSingleByteXORs(codes)
+
+//Test code for single byte XOR cipher decoding
         coded, _ := hex.DecodeString("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
 	cipher, score, byteArray := SingleByteXORDecode(coded)
 	fmt.Println(fmt.Sprintf("%c - %v",cipher,score))
