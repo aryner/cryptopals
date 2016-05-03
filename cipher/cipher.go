@@ -95,6 +95,19 @@ func SingleByteXORDecode(coded []byte) (byte, float64, []byte) {
 	return k, scores[k], m[k]
 }
 
+func HammingDistance(one []byte, two []byte) int {
+	var result int
+	for i, v := range one {
+		diff := v ^ two[i]
+		for ; diff > 0; diff = diff >> 1 {
+			if diff % 2 != 0 {
+				result += 1
+			}
+		}
+	}
+	return result
+}
+
 func ScoreMaps(m map[byte][]byte) map[byte]float64 {
 	var result = make(map[byte]float64)
 	for k, v := range m {
@@ -201,6 +214,8 @@ func DetectSingleByteXORs(codes []string) {
 }
 
 func main() {
+//Test the Hamming distance function
+	fmt.Println(HammingDistance([]byte("this is a test"),[]byte("wokka wokka!!!")))
 //Test code for repeating XOR cipher
 	var message = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal"
 	key := []byte{'I','C','E'}
