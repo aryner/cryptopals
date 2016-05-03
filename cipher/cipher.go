@@ -95,6 +95,53 @@ func SingleByteXORDecode(coded []byte) (byte, float64, []byte) {
 	return k, scores[k], m[k]
 }
 
+func ProposeKeyLength(min int, max int, text []byte) []int {
+	var lengths []int
+	var distances []float64
+	for ; min<=max; min++ {
+		dis := getAvgDistance(min,4,text)
+		distances = append(distances, dis)
+		lengths = append(lengths,min)
+		distances, lengths = orderPairs(3,distances,lengths)
+	}
+	return lengths
+}
+
+func getAvgDistance(keyLength int, numBlocks int, text []byte) float64 {
+	var sum float64
+	var n int
+	for i:=0; i<numBlocks; i++ {
+		for j:=i+1; j<=numBlocks; j++ {
+			if keyLength*(j+1) < len(text) {
+				sum += float64(HammingDistance(text[keyLength*i:keyLength*(i+1)],text[keyLength*j:keyLength*(j+1)])/keyLength)
+				n++
+			}
+		}
+	}
+	return sum / float64(n)
+}
+
+func orderPairs(max int, sortBy []float64, follow []int) ([]float64, []int) {
+	if len(sortBy) <= 1 {
+		return sortBy, follow
+	} else {
+		back := len(sortBy)-1
+		for ;back > 0 && sortBy[back] < sortBy[back-1]; back-- {
+			temp := sortBy[back]
+			sortBy[back] = sortBy[back-1]
+			sortBy[back-1] = temp
+			temp2 := follow[back]
+			follow[back] = follow[back-1]
+			follow[back-1] = temp2
+		}
+	}
+	if len(sortBy) < max {
+		return sortBy, follow
+	}
+	
+	return sortBy[:max], follow[:max]
+}
+
 func HammingDistance(one []byte, two []byte) int {
 	var result int
 	for i, v := range one {
@@ -214,21 +261,32 @@ func DetectSingleByteXORs(codes []string) {
 }
 
 func main() {
+//Test repeating xor decoding
+	text, err := ioutil.ReadFile("test2.txt")
+	if err != nil {
+		fmt.Println("error")
+	} else {
+		possibleLengths := ProposeKeyLength(2,40,text)
+		fmt.Println(possibleLengths)
+	}
+
 //Test the Hamming distance function
 	fmt.Println(HammingDistance([]byte("this is a test"),[]byte("wokka wokka!!!")))
+
 //Test code for repeating XOR cipher
 	var message = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal"
 	key := []byte{'I','C','E'}
 	rxorCoded := RepeatingKeyXORCipher(key,message)
 	fmt.Println(rxorCoded)
+
 //Test code for detecting an single byte XOR cipher
 	f, err := ioutil.ReadFile("test.txt")
 	if err != nil {
 		fmt.Println("error")
-		return
+	} else {
+		codes := strings.Split(string(f),"\n")
+		DetectSingleByteXORs(codes)
 	}
-	codes := strings.Split(string(f),"\n")
-	DetectSingleByteXORs(codes)
 
 //Test code for single byte XOR cipher decoding
         coded, _ := hex.DecodeString("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
