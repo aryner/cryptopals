@@ -74,6 +74,14 @@ func SingleByteXORCipher(c byte, b []byte) []byte {
 	return result
 }
 
+func RepeatingKeyXORCipher(k []byte, m string) string {
+	var result []byte
+	for i := range m {
+		result = append(result, k[i % len(k)] ^ byte(m[i]))
+	}
+	return hex.EncodeToString(result)
+}
+
 func SingleByteXORDecode(coded []byte) (byte, float64, []byte) {
 	initLetters()
 	m := make(map[byte][]byte)
@@ -193,6 +201,11 @@ func DetectSingleByteXORs(codes []string) {
 }
 
 func main() {
+//Test code for repeating XOR cipher
+	var message = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal"
+	key := []byte{'I','C','E'}
+	rxorCoded := RepeatingKeyXORCipher(key,message)
+	fmt.Println(rxorCoded)
 //Test code for detecting an single byte XOR cipher
 	f, err := ioutil.ReadFile("test.txt")
 	if err != nil {
