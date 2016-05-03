@@ -3,6 +3,7 @@ package main
 import (
         "fmt"
 	"encoding/hex"
+	"encoding/base64"
 	"strings"
 	"io/ioutil"
 )
@@ -93,6 +94,36 @@ func SingleByteXORDecode(coded []byte, commonWords bool) (byte, float64, []byte)
 	scores := ScoreMaps(m,commonWords)
 	k := GetHighScoreCipher(scores,m)
 	return k, scores[k], m[k]
+}
+
+func RepeatingKeyXORDecode(coded []byte, min int, max int) {
+	possibleLengths := ProposeKeyLength(min, max, coded)
+	blocks := createBlocks(possibleLengths[0], coded)
+	key := breakBlocks(blocks)
+	rxorDecoded := RepeatingKeyXORCipher(key,string(coded))
+	decoded, _ := hex.DecodeString(rxorDecoded)
+	printFormatedByteArray(decoded)
+}
+
+func createBlocks(length int, text []byte) [][]byte {
+	var blocks = make([][]byte, length, length)
+	for i:=0; i<len(text); i+=length {
+		for j:=0; j<length; j++ {
+			if len(text) > i+j {
+				blocks[j] = append(blocks[j], text[i+j])
+			}
+		}
+	}
+	return blocks
+}
+
+func breakBlocks(blocks [][]byte) []byte {
+	var result []byte
+	for _, block := range blocks {
+		cipher, _, _ := SingleByteXORDecode(block, false)
+		result = append(result, cipher)
+	}
+	return result
 }
 
 func ProposeKeyLength(min int, max int, text []byte) []int {
@@ -262,14 +293,29 @@ func DetectSingleByteXORs(codes []string, commonWords bool) {
 	}
 }
 
+func Base64ToHex(b []byte) ([]byte, error) {
+	d, err := base64.StdEncoding.DecodeString(string(b))
+	if err != nil {
+		return nil,err
+	} else {
+		data := hex.EncodeToString([]byte(d))
+		return []byte(data), nil
+	}
+}
+
 func main() {
 //Test repeating xor decoding
 	text, err := ioutil.ReadFile("test2.txt")
 	if err != nil {
 		fmt.Println("error")
 	} else {
-		possibleLengths := ProposeKeyLength(2,40,text)
-		fmt.Println(possibleLengths)
+		data, err := base64.StdEncoding.DecodeString(string(text))
+		//data, err := Base64ToHex(text)
+		if err != nil {
+			fmt.Println("error",err) 
+		} else {
+			RepeatingKeyXORDecode(data, 2, 40)
+		}
 	}
 
 //Test the Hamming distance function
