@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 )
 
-var Thresh = 5.5
+var Thresh = 3.5
 var LettersNumbers []byte
 var LetterFrequency = map[byte]float64 {
 	'E':12.02, 'T':9.1, 'A':8.12, 'O':7.68, 'I':7.31,
@@ -82,7 +82,7 @@ func RepeatingKeyXORCipher(k []byte, m string) string {
 	return hex.EncodeToString(result)
 }
 
-func SingleByteXORDecode(coded []byte) (byte, float64, []byte) {
+func SingleByteXORDecode(coded []byte, commonWords bool) (byte, float64, []byte) {
 	initLetters()
 	m := make(map[byte][]byte)
 	for _, c := range LettersNumbers {
@@ -90,7 +90,7 @@ func SingleByteXORDecode(coded []byte) (byte, float64, []byte) {
 		m[c] = decode
 	}
 
-	scores := ScoreMaps(m)
+	scores := ScoreMaps(m,commonWords)
 	k := GetHighScoreCipher(scores,m)
 	return k, scores[k], m[k]
 }
@@ -155,15 +155,15 @@ func HammingDistance(one []byte, two []byte) int {
 	return result
 }
 
-func ScoreMaps(m map[byte][]byte) map[byte]float64 {
+func ScoreMaps(m map[byte][]byte, commonWords bool) map[byte]float64 {
 	var result = make(map[byte]float64)
 	for k, v := range m {
-		result[k] = ScoreAsEnglish(v)
+		result[k] = ScoreAsEnglish(v,commonWords)
 	}
 	return result
 }
 
-func ScoreAsEnglish(b []byte) float64{
+func ScoreAsEnglish(b []byte, commonWords bool) float64{
 	var result float64
 	for _, c := range b {
 		if v, ok := LetterFrequency[c]; ok {
@@ -173,7 +173,9 @@ func ScoreAsEnglish(b []byte) float64{
 		}
 	}
 	result /= float64(len(b))
-	result += ScoreCommonWords(b)
+	if commonWords {
+		result += ScoreCommonWords(b)
+	}
 /*
 	if result > 2 {
 		result += ScoreOnWordLength(b)
@@ -241,18 +243,18 @@ func printFormatedByteArray(v []byte) {
 	fmt.Println()
 }
 
-func PossibleSingleByteXOR(b []byte) (bool,float64,byte,[]byte) {
-	cipher, score, byteArray := SingleByteXORDecode(b)
+func PossibleSingleByteXOR(b []byte, commonWords bool) (bool,float64,byte,[]byte) {
+	cipher, score, byteArray := SingleByteXORDecode(b,commonWords)
 	if score > Thresh {
 		return true, score, cipher, byteArray
 	}
 	return false, score, cipher, byteArray
 }
 
-func DetectSingleByteXORs(codes []string) {
+func DetectSingleByteXORs(codes []string, commonWords bool) {
 	for _, code := range codes {
 		hexCode, _ := hex.DecodeString(code)
-		passes,score,cipher,array := PossibleSingleByteXOR(hexCode)
+		passes,score,cipher,array := PossibleSingleByteXOR(hexCode, commonWords)
 		if passes {
 			fmt.Println(fmt.Sprintf("%c - %v",cipher,score))
 			printFormatedByteArray(array)
@@ -285,12 +287,12 @@ func main() {
 		fmt.Println("error")
 	} else {
 		codes := strings.Split(string(f),"\n")
-		DetectSingleByteXORs(codes)
+		DetectSingleByteXORs(codes,true)
 	}
 
 //Test code for single byte XOR cipher decoding
         coded, _ := hex.DecodeString("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
-	cipher, score, byteArray := SingleByteXORDecode(coded)
+	cipher, score, byteArray := SingleByteXORDecode(coded, true)
 	fmt.Println(fmt.Sprintf("%c - %v",cipher,score))
 	printFormatedByteArray(byteArray)
 }
