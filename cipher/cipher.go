@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"strings"
 	"io/ioutil"
+	"os/exec"
 )
 
 var Thresh = 3.5
@@ -103,6 +104,21 @@ func RepeatingKeyXORDecode(coded []byte, min int, max int) {
 	rxorDecoded := RepeatingKeyXORCipher(key,string(coded))
 	decoded, _ := hex.DecodeString(rxorDecoded)
 	printFormatedByteArray(decoded)
+}
+
+func DecodeAESinECB(key string, cipherfile string, b64 bool) string {
+	var cmd *exec.Cmd
+	if b64 {
+		cmd = exec.Command("openssl", "enc", "-aes-128-ecb", "-a", "-d", "-K", key, "-nosalt", "-in", cipherfile)
+	} else {
+		cmd = exec.Command("openssl", "enc", "-aes-128-ecb", "-d", "-K", key, "-nosalt", "-in", cipherfile)
+	}
+	decoded, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("error")
+		fmt.Println(err)
+	}
+	return string(decoded)
 }
 
 func createBlocks(length int, text []byte) [][]byte {
@@ -341,5 +357,11 @@ func main() {
 	cipher, score, byteArray := SingleByteXORDecode(coded, true)
 	fmt.Println(fmt.Sprintf("%c - %v",cipher,score))
 	printFormatedByteArray(byteArray)
+
+//Test aes in ecb decoding with key
+	aeskey := []byte("YELLOW SUBMARINE")
+	hexkey := hex.EncodeToString(aeskey)
+	decodedaes := DecodeAESinECB(hexkey, "test3.txt", true)
+	fmt.Printf("%s\n",decodedaes)
 }
 
