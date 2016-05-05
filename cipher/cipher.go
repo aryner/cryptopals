@@ -106,7 +106,8 @@ func RepeatingKeyXORDecode(coded []byte, min int, max int) {
 	printFormatedByteArray(decoded)
 }
 
-func DecodeAESinECB(key string, cipherfile string, b64 bool) string {
+// key is a hex encoded string
+func DecodeAESinECBFile(key string, cipherfile string, b64 bool) string {
 	var cmd *exec.Cmd
 	if b64 {
 		cmd = exec.Command("openssl", "enc", "-aes-128-ecb", "-a", "-d", "-K", key, "-nosalt", "-in", cipherfile)
@@ -119,6 +120,34 @@ func DecodeAESinECB(key string, cipherfile string, b64 bool) string {
 		fmt.Println(err)
 	}
 	return string(decoded)
+}
+
+func DetectECBLines(encryptedlines []string, blocksize int) ([]int,[][]byte) {
+	var lines []int
+	var blocks [][]byte
+	for i, v := range encryptedlines {
+		ecb, block := DetectECB(v, blocksize)
+		if ecb {
+			lines = append(lines,i)
+			blocks = append(blocks, block)
+		}
+	}
+	return lines, blocks
+}
+
+func DetectECB(hexstring string, blocksize int) (bool, []byte)  {
+	var blocks []string
+	for i:=0; i<len(hexstring); i+=blocksize {
+		blocks = append(blocks,hexstring[i:i+blocksize])
+	}
+	for i:=0; i<len(blocks)-1; i++ {
+		for j:=i+1; j<len(blocks); j++ {
+			if blocks[i] == blocks[j] {
+				return true, []byte(blocks[i])
+			}
+		}
+	}
+	return false, nil
 }
 
 func createBlocks(length int, text []byte) [][]byte {
@@ -361,7 +390,20 @@ func main() {
 //Test aes in ecb decoding with key
 	aeskey := []byte("YELLOW SUBMARINE")
 	hexkey := hex.EncodeToString(aeskey)
-	decodedaes := DecodeAESinECB(hexkey, "test3.txt", true)
+	decodedaes := DecodeAESinECBFile(hexkey, "test3.txt", true)
 	fmt.Printf("%s\n",decodedaes)
+
+//Test code for detecting an aes in ecb encription
+	encryptedhex, err := ioutil.ReadFile("test4.txt")
+	if err != nil {
+		fmt.Println("error")
+	} else {
+		encryptedlines := strings.Split(string(encryptedhex),"\n")
+		lines, blocks := DetectECBLines(encryptedlines, 16)
+		fmt.Println(lines, blocks)
+		for _, v := range blocks {
+			fmt.Printf("%s\n",v)
+		}
+	}
 }
 
