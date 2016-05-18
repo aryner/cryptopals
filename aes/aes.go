@@ -73,6 +73,16 @@ func SboxLookup(b int) int {
 	return sbox[msn*16 + lsn]
 }
 
+func KeyScheduleCore(word, i int) int {
+	output := Rotate(word)
+	b1 := SboxLookup(output & 0xff000000) ^ (Rcon(i) << 24)
+	b2 := SboxLookup(output & 0x00ff0000)
+	b3 := SboxLookup(output & 0x0000ff00)
+	b4 := SboxLookup(output & 0x000000ff)
+
+	return b1 ^ b2 ^ b3 ^ b4
+}
+
 func main() {
 	fmt.Printf("%b\n",peasantsMult(83,202))
 	fmt.Printf("%x\n",Rotate(0x1d2c3a4f))
