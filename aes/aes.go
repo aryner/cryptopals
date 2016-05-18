@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 )
 
 var reducingPoly = int(283)
@@ -29,7 +30,19 @@ func Rotate(word int) int {
 	return rotated
 }
 
+func Rcon(i int) int {
+	rcon := int(math.Pow(2.,float64((i-1))))
+	if rcon >= 256 {
+		return rcon ^ reducingPoly
+	}
+	return rcon
+}
+
 func main() {
 	fmt.Printf("%b\n",peasantsMult(83,202))
 	fmt.Printf("%x\n",Rotate(0x1d2c3a4f))
+	fmt.Println(Rcon(1))
+	fmt.Println(Rcon(2))
+	fmt.Println(Rcon(3))
+	fmt.Println(Rcon(9))
 }
