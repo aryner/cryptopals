@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 )
 
 var reducingPoly = int(283)
@@ -31,9 +30,21 @@ func Rotate(word int) int {
 }
 
 func Rcon(i int) int {
-	rcon := int(math.Pow(2.,float64((i-1))))
-	if rcon >= 256 {
-		return rcon ^ reducingPoly
+	rcon := 1
+	i--
+	for ; i > 0; i-- {
+		rcon = rcon << 1
+		if rcon >= 256 {
+			rcon ^=  reducingPoly
+		}
+	}
+	return rcon
+}
+
+func GetRconTo(i int) []int {
+	rcon := make([]int, i, i)
+	for ;i>0; i-- {
+		rcon[i-1] = Rcon(i)
 	}
 	return rcon
 }
@@ -41,8 +52,8 @@ func Rcon(i int) int {
 func main() {
 	fmt.Printf("%b\n",peasantsMult(83,202))
 	fmt.Printf("%x\n",Rotate(0x1d2c3a4f))
-	fmt.Println(Rcon(1))
-	fmt.Println(Rcon(2))
-	fmt.Println(Rcon(3))
-	fmt.Println(Rcon(9))
+	rcon := GetRconTo(10)
+	for i, v := range rcon {
+		fmt.Printf("%d - %x\n",i+1,v)
+	}
 }
