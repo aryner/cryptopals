@@ -5,7 +5,7 @@ import (
 )
 
 var reducingPoly = int(283)
-var sbox = []int{
+var sbox = []byte{
 	0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
 	0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
 	0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, 0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
@@ -41,13 +41,16 @@ func peasantsMult(a int, b int) int {
 }
 
 //Rotates a 32 bit word 8 bits to the left, wrapping back to the begining
-func Rotate(word int) int {
-	tail := (word & 0xff000000) >> 24
-	rotated := ((word << 8) & 0xffffff00) ^ tail
-	return rotated
+func Rotate(word []byte) []byte {
+	tail := word[0]
+	for i:=1; i<len(word); i++ {
+		word[i-1] = word[i]
+	}
+	word[len(word)-1] = tail
+	return word
 }
 
-func Rcon(i int) int {
+func Rcon(i byte) byte {
 	rcon := 1
 	i--
 	for ; i > 0; i-- {
@@ -56,39 +59,108 @@ func Rcon(i int) int {
 			rcon ^=  reducingPoly
 		}
 	}
-	return rcon
+	return byte(rcon)
 }
 
-func GetRconTo(i int) []int {
-	rcon := make([]int, i, i)
+func GetRconTo(i int) []byte {
+	rcon := make([]byte, i, i)
 	for ;i>0; i-- {
-		rcon[i-1] = Rcon(i)
+		rcon[i-1] = Rcon(byte(i))
 	}
 	return rcon
 }
 
-func SboxLookup(b int) int {
+func SboxLookup(b byte) byte {
 	lsn := b & 0x0f
 	msn := b >> 4
 	return sbox[msn*16 + lsn]
 }
 
-func KeyScheduleCore(word, i int) int {
+func KeyScheduleCore(word []byte, i byte) []byte {
 	output := Rotate(word)
-	b1 := SboxLookup(output & 0xff000000) ^ (Rcon(i) << 24)
-	b2 := SboxLookup(output & 0x00ff0000)
-	b3 := SboxLookup(output & 0x0000ff00)
-	b4 := SboxLookup(output & 0x000000ff)
+	b1 := SboxLookup(output[0]) ^ Rcon(i)
+	b2 := SboxLookup(output[1]) 
+	b3 := SboxLookup(output[2]) 
+	b4 := SboxLookup(output[3]) 
 
-	return b1 ^ b2 ^ b3 ^ b4
+	return []byte{b1,b2,b3,b4}
+}
+
+func KeySchedule(word []byte) []byte{
+	ekey := word[:16]
+        for i:=1; len(ekey) < 176; i++ {
+		t := copy(ekey[len(ekey)-4:])
+		t = KeyScheduleCore(t,byte(i))
+		t = xorSlices(ekey[len(ekey)-16:len(ekey)-12], t)
+		ekey = append(ekey,t...)
+		for j:=0; j<3;j++ {
+			t = copy(ekey[len(ekey)-4:])
+			t = xorSlices(ekey[len(ekey)-16:len(ekey)-12], t)
+			ekey = append(ekey,t...)
+		}
+	}
+	return ekey
+}
+
+func copy(b []byte) []byte {
+	result := make([]byte,len(b),len(b))
+	for i:=0; i<len(b); i++ {
+		result[i] = b[i]
+	}
+	return result
+}
+
+func xorSlices(a,b []byte) []byte {
+	xored := make([]byte,len(a),len(a))
+	for i:=0; i<len(a); i++ {
+		xored[i] = a[i] ^ b[i]
+	}
+	return xored
 }
 
 func main() {
 	fmt.Printf("%b\n",peasantsMult(83,202))
-	fmt.Printf("%x\n",Rotate(0x1d2c3a4f))
+	test := []byte{0x1d,0x2c,0x3a,0x4f}
+	fmt.Printf("%x\n",Rotate(test))
 	rcon := GetRconTo(10)
 	for i, v := range rcon {
 		fmt.Printf("%d - %x\n",i+1,v)
 	}
-	fmt.Printf("%x\n",SboxLookup(0x9a))
+	fmt.Printf("%x\n",SboxLookup(byte(0x9a)))
+	testVector := []byte{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}
+	key := KeySchedule(testVector)
+	for i:=0; i<len(key); i+=16 {
+		for j:=0; j<16; j++ {
+			fmt.Printf("%x ",key[i+j])
+		}
+		fmt.Println()
+	}
+	fmt.Println("************")
+	testVector = []byte{0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff}
+	key = KeySchedule(testVector)
+	for i:=0; i<len(key); i+=16 {
+		for j:=0; j<16; j++ {
+			fmt.Printf("%x ",key[i+j])
+		}
+		fmt.Println()
+	}
+	fmt.Println("************")
+	testVector = []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
+	key = KeySchedule(testVector)
+	for i:=0; i<len(key); i+=16 {
+		for j:=0; j<16; j++ {
+			fmt.Printf("%x ",key[i+j])
+		}
+		fmt.Println()
+	}
+	fmt.Println("************")
+	testVector = []byte{0x69, 0x20, 0xe2, 0x99, 0xa5, 0x20, 0x2a, 0x6d, 0x65, 0x6e, 0x63, 0x68, 0x69, 0x74, 0x6f, 0x2a}
+	key = KeySchedule(testVector)
+	for i:=0; i<len(key); i+=16 {
+		for j:=0; j<16; j++ {
+			fmt.Printf("%x ",key[i+j])
+		}
+		fmt.Println()
+	}
+	fmt.Println("************")
 }
